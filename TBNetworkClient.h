@@ -1,6 +1,6 @@
 //
-//  NetworkClient.h
-//
+//  TBNetworkClient.h
+//  https://github.com/tirupati17/TBNetworkClient
 //
 //  Created by Tirupati Balan on 13/05/13.
 //  Copyright (c) 2014 CelerApps. All rights reserved.
@@ -14,10 +14,10 @@
 - (void)failedResult;
 @end
 
-@interface NetworkClient : NSObject <NSURLConnectionDelegate> {
+@interface TBNetworkClient : NSObject <NSURLConnectionDelegate> {
 
 }
-typedef void (^CallbackBlock)(id responseDict, NSError *error);
+typedef void (^CallbackBlock)(id responseObj, NSError *error);
 @property (copy) CallbackBlock callback;
 @property (nonatomic, assign) id <NetworkClientDelegate> delegate;
 @property (nonatomic, retain) NSMutableData *responseData;
@@ -52,4 +52,8 @@ typedef void (^CallbackBlock)(id responseDict, NSError *error);
 //Simple get request
 - (void)getNSURLRequest:(NSString *)apiQuery
                 atBlock:(CallbackBlock)block;
+- (void)postNSURLRequest:(NSString *)apiQuery
+              atPostBody:(NSString *)postBody
+                 atBlock:(CallbackBlock)block;
+
 @end

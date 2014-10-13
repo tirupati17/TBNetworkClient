@@ -1,21 +1,21 @@
 //
-//  NetworkClient.m
-//  
+//  TBNetworkClient.m
+//  https://github.com/tirupati17/TBNetworkClient
 //
 //  Created by Tirupati Balan on 13/05/13.
 //  Copyright (c) 2014 CelerApps. All rights reserved.
 //
 
-#import "NetworkClient.h"
+#import "TBNetworkClient.h"
 
-@implementation NetworkClient
+@implementation TBNetworkClient
 
 @synthesize delegate;
 @synthesize callback;
 @synthesize responseData;
 
 + (id)sharedNetworkClient {
-    static NetworkClient *sharedNetworkClient = nil;
+    static TBNetworkClient *sharedNetworkClient = nil;
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
         sharedNetworkClient = [[self alloc] init];
@@ -50,10 +50,6 @@
 
     AFHTTPRequestOperationManager *manager = [AFHTTPRequestOperationManager manager];
 
-    AFHTTPRequestSerializer *requestSerializer = [AFHTTPRequestSerializer serializer];
-    [requestSerializer setValue:keyString forHTTPHeaderField:@"Authorization"];
-    manager.requestSerializer = requestSerializer;
-
     [manager GET:apiQuery
       parameters:parameters
          success:^(AFHTTPRequestOperation *operation, id responseObject) {
@@ -83,14 +79,10 @@
                                                        timeoutInterval:30];
 
     [request setHTTPMethod:@"POST"];
-    [request setValue:keyString forHTTPHeaderField:@"Authorization"];
-    [request setValue:@"application/json" forHTTPHeaderField:@"Accept"];
-    [request setValue:@"application/json" forHTTPHeaderField:@"Content-Type"];
-
     [request setHTTPBody:[postBody dataUsingEncoding:NSUTF8StringEncoding]];
 
     AFHTTPRequestOperation *op = [[AFHTTPRequestOperation alloc] initWithRequest:request];
-    op.responseSerializer = [AFJSONResponseSerializer serializer];
+    op.responseSerializer = [AFHTTPResponseSerializer serializer];
     [op setCompletionBlockWithSuccess:^(AFHTTPRequestOperation *operation, id responseObject) {
         self.callback(responseObject, nil);
     } failure:^(AFHTTPRequestOperation *operation, NSError *error) {
@@ -110,13 +102,7 @@
           atPostParameter:(NSDictionary *)parameters
                   atBlock:(CallbackBlock)block
                     atKey:(NSString *)keyString {
-    self.callback = block;
-    
     AFHTTPRequestOperationManager *manager = [AFHTTPRequestOperationManager manager];
-
-    AFHTTPRequestSerializer *requestSerializer = [AFHTTPRequestSerializer serializer];
-    [requestSerializer setValue:keyString forHTTPHeaderField:@"Authorization"];
-    manager.requestSerializer = requestSerializer;
 
     [manager POST:apiQuery parameters:parameters
           success:^(AFHTTPRequestOperation *operation, id responseObject) {
@@ -124,7 +110,7 @@
           }
           failure:^(AFHTTPRequestOperation *operation, NSError *error) {
               self.callback(nil, error);
-    }];
+          }];
 }
 
 /**
@@ -139,7 +125,6 @@
                  atBlock:(CallbackBlock)block
                    atKey:(NSString *)keyString {
     self.callback = block;
-
     AFHTTPRequestOperationManager *manager = [AFHTTPRequestOperationManager manager];
 
     AFHTTPRequestSerializer *requestSerializer = [AFHTTPRequestSerializer serializer];
@@ -193,8 +178,33 @@
 
 - (void)connectionDidFinishLoading:(NSURLConnection *)connection {
     [self.delegate receivedResult:[[NSString alloc] initWithData:self.responseData encoding:NSASCIIStringEncoding]];
-    self.callback(self.responseData, nil);
+    self.callback([NSJSONSerialization JSONObjectWithData:self.responseData options:NSJSONReadingAllowFragments error:nil], nil);
     NSLog(@"Success: %@", [[NSString alloc] initWithData:self.responseData encoding:NSASCIIStringEncoding]);
+}
+
+/**
+ Class  : Apple NSURLConnection
+ Method : POST
+ apiQuery : url query
+ **/
+
+- (void)postNSURLRequest:(NSString *)apiQuery
+              atPostBody:(NSString *)postBody
+                 atBlock:(CallbackBlock)block {
+    self.callback = block;
+    NSURLSessionConfiguration *configuration = [NSURLSessionConfiguration defaultSessionConfiguration];
+    NSURLSession *session = [NSURLSession sessionWithConfiguration:configuration delegate:nil delegateQueue:nil];
+    NSURL *url = [NSURL URLWithString:apiQuery];
+    NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:url
+                                                           cachePolicy:NSURLRequestUseProtocolCachePolicy
+                                                       timeoutInterval:60.0];    
+    [request setHTTPMethod:@"POST"];
+    [request setHTTPBody:[postBody dataUsingEncoding:NSUTF8StringEncoding]];
+    
+    NSURLSessionDataTask *postDataTask = [session dataTaskWithRequest:request completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
+        self.callback([NSJSONSerialization JSONObjectWithData:data options:NSJSONReadingAllowFragments error:nil], error);
+    }];
+    [postDataTask resume];
 }
 
 @end
